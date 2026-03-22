@@ -1,0 +1,12 @@
+cd C:\Users\Admin\Downloads\LULC_Aanlysis_Dashboard
+@"
+services:
+  - type: web
+    name: land-use-change-api
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+"@ | Out-File -FilePath render.yaml -Encoding utf8
