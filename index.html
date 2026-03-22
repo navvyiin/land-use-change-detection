@@ -1,0 +1,2301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Land Use Change Analysis · Geospatial Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    /* ── Design tokens ──────────────────────────────────────────────────── */
+    :root {
+      --bg: #f2ede3;
+      --surface: #faf8f3;
+      --card: #ffffff;
+      --border: #c8d5bf;
+      --border2: #a8bfa0;
+      --accent: #2d6a4f;
+      --accent2: #40916c;
+      --accent3: #74c69d;
+      --accentlt: #d8f3dc;
+      --warn: #bc4749;
+      --gold: #8a6f2e;
+      --text: #1b2d20;
+      --muted: #5a7060;
+      --sidebar: #e6ede1;
+      --radius: 8px;
+      --serif: 'Playfair Display', Georgia, serif;
+      --sans: 'DM Sans', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', monospace;
+      --shadow: 0 1px 3px rgba(27, 45, 32, .08), 0 1px 2px rgba(27, 45, 32, .04);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: var(--sans);
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      padding: .85rem 2rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(145deg, var(--accent), var(--accent2));
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .logo-text h1 {
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--accent);
+      line-height: 1.2;
+    }
+
+    .logo-text p {
+      font-family: var(--mono);
+      font-size: .6rem;
+      color: var(--muted);
+      letter-spacing: .06em;
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .year-badge {
+      font-family: var(--mono);
+      font-size: .68rem;
+      background: var(--accentlt);
+      color: var(--accent);
+      border: 1px solid var(--accent3);
+      border-radius: 999px;
+      padding: .28rem .75rem;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-family: var(--mono);
+      font-size: .65rem;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent3);
+    }
+
+    .dot.ok {
+      background: var(--accent);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    .dot.err {
+      background: var(--warn);
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .4
+      }
+    }
+
+    /* ── App layout ──────────────────────────────────────────────────────── */
+    .app {
+      display: flex;
+      height: calc(100vh - 61px);
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 240px;
+      min-width: 240px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .sidebar-section {
+      padding: .9rem 1.1rem .3rem;
+      font-family: var(--mono);
+      font-size: .58rem;
+      color: var(--muted);
+      letter-spacing: .12em;
+      font-weight: 500;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      padding: .58rem 1.1rem;
+      width: 100%;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-family: var(--sans);
+      font-size: .82rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-align: left;
+      border-left: 3px solid transparent;
+      transition: all .14s;
+    }
+
+    .nav-btn:hover {
+      color: var(--text);
+      background: rgba(45, 106, 79, .06);
+    }
+
+    .nav-btn.active {
+      color: var(--accent);
+      background: rgba(45, 106, 79, .1);
+      border-left-color: var(--accent);
+    }
+
+    .nav-icon {
+      font-size: .95rem;
+      width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+
+    /* ── Main content ─────────────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .view {
+      display: none;
+      flex-direction: column;
+      gap: 1.25rem;
+      animation: fadeIn .2s ease;
+    }
+
+    .view.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    /* ── Typography ────────────────────────────────────────────────────────── */
+    .page-title {
+      font-family: var(--serif);
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: .1rem;
+    }
+
+    .page-sub {
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    h2 {
+      font-family: var(--serif);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .formula {
+      font-family: var(--mono);
+      font-size: .75rem;
+      background: var(--accentlt);
+      color: var(--accent);
+      padding: .3rem .7rem;
+      border-radius: 5px;
+      border-left: 3px solid var(--accent);
+      display: inline-block;
+      margin: .3rem 0;
+    }
+
+    /* ── Cards ─────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .85rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-family: var(--serif);
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .card-tag {
+      font-family: var(--mono);
+      font-size: .58rem;
+      background: var(--accentlt);
+      color: var(--accent2);
+      border: 1px solid var(--accent3);
+      border-radius: 4px;
+      padding: .15rem .45rem;
+    }
+
+    .card-body {
+      padding: 1.1rem;
+    }
+
+    /* ── KPI grid ───────────────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      border-top: 3px solid var(--accent);
+      box-shadow: var(--shadow);
+    }
+
+    .kpi.warn {
+      border-top-color: var(--warn);
+    }
+
+    .kpi.gold {
+      border-top-color: var(--gold);
+    }
+
+    .kpi.mint {
+      border-top-color: var(--accent3);
+    }
+
+    .kpi-label {
+      font-family: var(--mono);
+      font-size: .6rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+      margin-bottom: .35rem;
+      font-weight: 500;
+    }
+
+    .kpi-value {
+      font-family: var(--serif);
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .kpi-sub {
+      font-size: .7rem;
+      color: var(--muted);
+      margin-top: .25rem;
+    }
+
+    /* ── Grid layouts ────────────────────────────────────────────────────────── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.1rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1.1rem;
+    }
+
+    .grid-equal3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* ── Charts ──────────────────────────────────────────────────────────────── */
+    .chart-box {
+      position: relative;
+      height: 230px;
+    }
+
+    .chart-box-tall {
+      position: relative;
+      height: 310px;
+    }
+
+    .chart-box-sm {
+      position: relative;
+      height: 170px;
+    }
+
+    /* ── Stats table ─────────────────────────────────────────────────────────── */
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .8rem;
+    }
+
+    .stats-table thead th {
+      font-family: var(--mono);
+      font-size: .65rem;
+      font-weight: 500;
+      color: var(--card);
+      background: var(--accent);
+      padding: .45rem .75rem;
+      text-align: left;
+      border: none;
+    }
+
+    .stats-table thead th:first-child {
+      border-radius: 5px 0 0 0;
+    }
+
+    .stats-table thead th:last-child {
+      border-radius: 0 5px 0 0;
+    }
+
+    .stats-table tbody tr {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats-table tbody tr:hover {
+      background: var(--accentlt);
+    }
+
+    .stats-table td {
+      padding: .42rem .75rem;
+      vertical-align: middle;
+    }
+
+    .stats-table td.num {
+      font-family: var(--mono);
+      font-size: .75rem;
+      text-align: right;
+    }
+
+    .stats-table td.pos {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .stats-table td.neg {
+      color: var(--warn);
+      font-weight: 500;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: .65rem;
+      font-family: var(--mono);
+      padding: .15rem .45rem;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .badge.low {
+      background: #d8f3dc;
+      color: #2d6a4f;
+    }
+
+    .badge.mod {
+      background: #fff3cd;
+      color: #8a6f2e;
+    }
+
+    .badge.high {
+      background: #fde8e8;
+      color: #bc4749;
+    }
+
+    .badge.crit {
+      background: #bc4749;
+      color: #fff;
+    }
+
+    /* ── Change matrix ────────────────────────────────────────────────────────── */
+    .matrix-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .cm-table {
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: .7rem;
+      min-width: max-content;
+    }
+
+    .cm-table th,
+    .cm-table td {
+      padding: .38rem .6rem;
+      border: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .cm-table th {
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 500;
+      font-size: .62rem;
+    }
+
+    .cm-table .cm-diag {
+      background: var(--accentlt);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .cm-table .cm-hot {
+      background: #fde8e8;
+      color: var(--warn);
+    }
+
+    .cm-table .cm-rlbl {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .cm-colhdr {
+      text-align: center;
+      font-size: .62rem;
+    }
+
+    /* ── Gain/loss bars ───────────────────────────────────────────────────────── */
+    .gl-item {
+      margin-bottom: .75rem;
+    }
+
+    .gl-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .75rem;
+      margin-bottom: .22rem;
+    }
+
+    .gl-net {
+      font-family: var(--mono);
+      font-size: .7rem;
+      font-weight: 500;
+    }
+
+    .gl-bars {
+      display: flex;
+      height: 8px;
+      border-radius: 4px;
+      gap: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .gl-gain {
+      background: var(--accent);
+      border-radius: 3px;
+    }
+
+    .gl-loss {
+      background: var(--warn);
+      border-radius: 3px;
+    }
+
+    /* ── Map viewer ───────────────────────────────────────────────────────────── */
+    .map-tabs {
+      display: flex;
+      gap: .45rem;
+      padding: .85rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-wrap: wrap;
+    }
+
+    .map-tab {
+      font-family: var(--mono);
+      font-size: .68rem;
+      padding: .3rem .7rem;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      transition: all .14s;
+    }
+
+    .map-tab:hover {
+      color: var(--text);
+      border-color: var(--accent2);
+    }
+
+    .map-tab.active {
+      background: var(--accentlt);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .map-display {
+      background: var(--surface);
+      min-height: 340px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .map-display img {
+      max-width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+    }
+
+    .map-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .7rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .75rem;
+      padding: 3rem;
+    }
+
+    .map-placeholder .mpi {
+      font-size: 2.5rem;
+      opacity: .35;
+    }
+
+    .map-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      padding: .9rem 1.1rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .ml-item {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .73rem;
+    }
+
+    .ml-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 0, 0, .1);
+    }
+
+    /* ── Data input panel ─────────────────────────────────────────────────────── */
+    .input-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .input-tab {
+      flex: 1;
+      padding: .75rem;
+      text-align: center;
+      font-size: .82rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: all .14s;
+    }
+
+    .input-tab:hover {
+      color: var(--text);
+    }
+
+    .input-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .input-pane {
+      display: none;
+      padding: 1.25rem;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .input-pane.active {
+      display: flex;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+    }
+
+    .form-group label {
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .form-group small {
+      font-size: .7rem;
+      color: var(--muted);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+    }
+
+    .form-row-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: .6rem;
+    }
+
+    input[type=text],
+    input[type=number],
+    select {
+      width: 100%;
+      padding: .5rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--sans);
+      font-size: .82rem;
+      background: var(--card);
+      color: var(--text);
+      transition: border-color .14s;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 2px rgba(64, 145, 108, .15);
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      background: var(--surface);
+      transition: all .14s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--accent2);
+      background: var(--accentlt);
+    }
+
+    .upload-zone.has-file {
+      border-color: var(--accent);
+      background: var(--accentlt);
+    }
+
+    .upload-zone .uzicon {
+      font-size: 1.8rem;
+      opacity: .5;
+    }
+
+    .upload-zone p {
+      font-size: .78rem;
+      color: var(--muted);
+    }
+
+    .upload-zone .filename {
+      font-family: var(--mono);
+      font-size: .7rem;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .gee-ds-preview {
+      background: var(--accentlt);
+      border: 1px solid var(--accent3);
+      border-radius: 6px;
+      padding: .75rem;
+      font-size: .78rem;
+    }
+
+    .gee-ds-preview strong {
+      color: var(--accent);
+    }
+
+    /* ── Buttons ──────────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .55rem 1.1rem;
+      border-radius: 6px;
+      font-family: var(--sans);
+      font-size: .82rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all .14s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent2);
+    }
+
+    .btn-primary:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .btn-outline {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+    }
+
+    .btn-outline:hover {
+      color: var(--text);
+      border-color: var(--accent2);
+    }
+
+    .btn-warn {
+      background: var(--warn);
+      color: #fff;
+    }
+
+    .btn-full {
+      width: 100%;
+      justify-content: center;
+    }
+
+    /* ── Stat chips ────────────────────────────────────────────────────────────── */
+    .stat-chip {
+      display: flex;
+      flex-direction: column;
+      gap: .15rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .6rem .9rem;
+      min-width: 110px;
+    }
+
+    .stat-chip-label {
+      font-family: var(--mono);
+      font-size: .58rem;
+      color: var(--muted);
+      letter-spacing: .08em;
+    }
+
+    .stat-chip-value {
+      font-family: var(--serif);
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .stat-chip-sub {
+      font-size: .65rem;
+      color: var(--muted);
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+    }
+
+    /* ── Progress / interpretation bars ─────────────────────────────────────────── */
+    .interp-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--border);
+      overflow: hidden;
+      margin: .3rem 0;
+    }
+
+    .interp-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--accent);
+      transition: width .5s ease;
+    }
+
+    .kappa-scale {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: .58rem;
+      color: var(--muted);
+      margin-top: .15rem;
+    }
+
+    /* ── Section divider ──────────────────────────────────────────────────────── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin: .3rem 0;
+    }
+
+    .section-divider span {
+      font-family: var(--serif);
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--accent2);
+      white-space: nowrap;
+    }
+
+    .section-divider hr {
+      flex: 1;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Loading / toast ──────────────────────────────────────────────────────── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(242, 237, 227, .82);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      z-index: 999;
+      backdrop-filter: blur(3px);
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .overlay-msg {
+      font-family: var(--mono);
+      font-size: .82rem;
+      color: var(--muted);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.75rem;
+      right: 1.75rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: .7rem 1.1rem;
+      font-family: var(--mono);
+      font-size: .75rem;
+      box-shadow: var(--shadow);
+      transform: translateX(200%);
+      transition: transform .3s;
+      z-index: 1000;
+      max-width: 320px;
+    }
+
+    .toast.show {
+      transform: translateX(0);
+    }
+
+    .toast.err {
+      border-left-color: var(--warn);
+    }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent3);
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────────── */
+    @media(max-width:960px) {
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-equal3 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media(max-width:640px) {
+      .sidebar {
+        display: none;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .grid-equal3 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading overlay -->
+  <div class="overlay" id="loader">
+    <div class="spinner"></div>
+    <div class="overlay-msg" id="loader-msg">Initialising…</div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🌿</div>
+      <div class="logo-text">
+        <h1>Land Use Change Analysis</h1>
+        <p>GEOSPATIAL CHANGE DETECTION · STATISTICAL ANALYSIS</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="year-badge" id="year-badge">No data loaded</span>
+      <div class="status-dot">
+        <div class="dot" id="api-dot"></div><span id="api-status">Connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="app">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-section">WORKFLOW</div>
+      <button class="nav-btn active" onclick="sv('input',this)"><span class="nav-icon">📂</span>Data Input</button>
+      <button class="nav-btn" onclick="sv('overview',this)"><span class="nav-icon">📊</span>Overview</button>
+      <button class="nav-btn" onclick="sv('maps',this)"><span class="nav-icon">🗺️</span>Map Viewer</button>
+
+      <div class="sidebar-section" style="margin-top:.5rem">STATISTICS</div>
+      <button class="nav-btn" onclick="sv('matrix',this)"><span class="nav-icon">🔢</span>Change Matrix</button>
+      <button class="nav-btn" onclick="sv('markov',this)"><span class="nav-icon">🔄</span>Markov Chain</button>
+      <button class="nav-btn" onclick="sv('accuracy',this)"><span class="nav-icon">📐</span>Accuracy / Kappa</button>
+      <button class="nav-btn" onclick="sv('spatial',this)"><span class="nav-icon">📍</span>Spatial Stats</button>
+      <button class="nav-btn" onclick="sv('landscape',this)"><span class="nav-icon">🏔️</span>Landscape Metrics</button>
+      <button class="nav-btn" onclick="sv('information',this)"><span class="nav-icon">ℹ️</span>Information
+        Theory</button>
+      <button class="nav-btn" onclick="sv('pontius',this)"><span class="nav-icon">⚖️</span>Pontius Decomp.</button>
+      <button class="nav-btn" onclick="sv('rates',this)"><span class="nav-icon">📈</span>Rates & Vuln.</button>
+
+      <div class="sidebar-section" style="margin-top:.5rem">EXPORT</div>
+      <div style="padding:0 .85rem .5rem">
+        <button class="btn btn-primary btn-full" id="exp-pdf" onclick="exportFile('pdf')" disabled>⬇ PDF Report</button>
+      </div>
+      <div style="padding:0 .85rem .5rem">
+        <button class="btn btn-outline btn-full" id="exp-csv" onclick="exportFile('csv')" disabled>⬇ CSV Data</button>
+      </div>
+      <div style="padding:0 .85rem 1rem">
+        <button class="btn btn-outline btn-full" id="exp-tif" onclick="exportFile('geotiff')" disabled>⬇
+          GeoTIFF</button>
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <main class="main" id="main">
+
+      <!-- ══════════════════════════════════════════════════════════════ DATA INPUT -->
+      <div class="view active" id="view-input">
+        <div>
+          <div class="page-title">Data Input</div>
+          <div class="page-sub">Upload classified GeoTIFF rasters, or fetch directly from Google Earth Engine.</div>
+        </div>
+
+        <div class="card">
+          <div class="input-tabs">
+            <button class="input-tab active" onclick="setInputTab('upload',this)">📁 Upload Rasters</button>
+            <button class="input-tab" onclick="setInputTab('gee',this)">🌍 Fetch from GEE</button>
+            <button class="input-tab" onclick="setInputTab('demo',this)">🧪 Demo Data</button>
+          </div>
+
+          <!-- Upload pane -->
+          <div class="input-pane active" id="pane-upload">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Year A (baseline)</label>
+                <input type="number" id="u-year-a" value="2010" min="2000" max="2030" />
+              </div>
+              <div class="form-group">
+                <label>Year B (target)</label>
+                <input type="number" id="u-year-b" value="2020" min="2000" max="2030" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Raster Format — Year A</label>
+                <select id="u-fmt-a">
+                  <option value="classified">Pre-classified (integer class IDs)</option>
+                  <option value="raw">Raw reflectance bands (K-means)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Raster Format — Year B</label>
+                <select id="u-fmt-b">
+                  <option value="classified">Pre-classified (integer class IDs)</option>
+                  <option value="raw">Raw reflectance bands (K-means)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" id="nclass-row" style="display:none">
+              <label>Number of classes (for K-means)</label>
+              <input type="number" id="u-nclasses" value="7" min="2" max="15" />
+              <small>Used when format is set to "Raw reflectance bands"</small>
+            </div>
+            <div class="form-row">
+              <div>
+                <div class="upload-zone" id="zone-a" onclick="document.getElementById('file-a').click()">
+                  <div class="uzicon">🗂️</div>
+                  <p>Click to select <strong>Year A</strong> GeoTIFF</p>
+                  <p class="filename" id="fname-a">No file selected</p>
+                </div>
+                <input type="file" id="file-a" accept=".tif,.tiff" style="display:none"
+                  onchange="fileSelected(event,'a')" />
+              </div>
+              <div>
+                <div class="upload-zone" id="zone-b" onclick="document.getElementById('file-b').click()">
+                  <div class="uzicon">🗂️</div>
+                  <p>Click to select <strong>Year B</strong> GeoTIFF</p>
+                  <p class="filename" id="fname-b">No file selected</p>
+                </div>
+                <input type="file" id="file-b" accept=".tif,.tiff" style="display:none"
+                  onchange="fileSelected(event,'b')" />
+              </div>
+            </div>
+            <button class="btn btn-primary" id="upload-btn" onclick="doUpload()" disabled>Analyse Rasters →</button>
+            <small style="color:var(--muted)">Rasters with different CRS/resolution will be automatically reprojected
+              and resampled. Pre-classified rasters should use integer class IDs 1–7 (see README for class
+              table).</small>
+          </div>
+
+          <!-- GEE pane -->
+          <div class="input-pane" id="pane-gee">
+            <div id="gee-auth-status" class="gee-ds-preview" style="display:none"></div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Year A</label>
+                <input type="number" id="g-year-a" value="2010" min="2001" max="2030" oninput="updateGeeDatasets()" />
+                <small>2001–present supported</small>
+              </div>
+              <div class="form-group">
+                <label>Year B</label>
+                <input type="number" id="g-year-b" value="2020" min="2001" max="2030" oninput="updateGeeDatasets()" />
+              </div>
+            </div>
+            <div id="gee-ds-preview" class="gee-ds-preview" style="display:none"></div>
+            <div class="form-group">
+              <label>Area (place name <em>or</em> bounding box)</label>
+              <input type="text" id="g-place" placeholder="e.g. Chikkamagaluru District, Karnataka, India"
+                oninput="toggleBbox()" />
+              <small>Leave blank to use the bounding box below instead.</small>
+            </div>
+            <div class="form-row-4">
+              <div class="form-group"><label>Min Lon (W)</label><input type="number" id="g-minx" placeholder="-180"
+                  step="0.01" /></div>
+              <div class="form-group"><label>Min Lat (S)</label><input type="number" id="g-miny" placeholder="-90"
+                  step="0.01" /></div>
+              <div class="form-group"><label>Max Lon (E)</label><input type="number" id="g-maxx" placeholder="180"
+                  step="0.01" /></div>
+              <div class="form-group"><label>Max Lat (N)</label><input type="number" id="g-maxy" placeholder="90"
+                  step="0.01" /></div>
+            </div>
+            <button class="btn btn-primary" id="gee-btn" onclick="doGEEFetch()">🌍 Fetch from GEE &amp; Analyse
+              →</button>
+            <small style="color:var(--muted)">Requires <code>earthengine authenticate</code> to have been run once.
+              Downloads at 30 m resolution. Large areas (&gt;2° × 2°) are automatically clipped to prevent quota
+              errors.</small>
+          </div>
+
+          <div class="input-pane" id="pane-demo">
+            <div style="padding:.5rem 0">
+              <p style="font-size:.85rem;color:var(--muted);line-height:1.7;">Loads a synthetic 512 × 512 landscape
+                calibrated to the <strong style="color:var(--text)">real Chikkamagaluru District GEE exports</strong>
+                (2013 MODIS → 2022 Dynamic World). Class proportions and dominant transitions match the actual data:</p>
+              <table style="font-size:.78rem;margin:.75rem 0;border-collapse:collapse;width:100%">
+                <thead>
+                  <tr style="background:var(--accentlt)">
+                    <th style="padding:.3rem .6rem;text-align:left">Class</th>
+                    <th style="padding:.3rem .6rem;text-align:right">2013</th>
+                    <th style="padding:.3rem .6rem;text-align:right">2022</th>
+                    <th style="padding:.3rem .6rem;text-align:right">Change</th>
+                  </tr>
+                </thead>
+                <tbody style="font-family:var(--mono)">
+                  <tr>
+                    <td style="padding:.25rem .6rem">🌲 Forest</td>
+                    <td style="text-align:right;padding:.25rem .6rem">25.5%</td>
+                    <td style="text-align:right;padding:.25rem .6rem;color:var(--accent);font-weight:600">71.2%</td>
+                    <td style="text-align:right;padding:.25rem .6rem;color:var(--accent)">+183k ha</td>
+                  </tr>
+                  <tr style="background:var(--surface)">
+                    <td style="padding:.25rem .6rem">🌿 Shrubland</td>
+                    <td style="text-align:right;padding:.25rem .6rem">28.7%</td>
+                    <td style="text-align:right;padding:.25rem .6rem">11.2%</td>
+                    <td style="text-align:right;padding:.25rem .6rem;color:var(--warn)">−126k ha</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:.25rem .6rem">🌾 Cropland</td>
+                    <td style="text-align:right;padding:.25rem .6rem">33.9%</td>
+                    <td style="text-align:right;padding:.25rem .6rem">10.9%</td>
+                    <td style="text-align:right;padding:.25rem .6rem;color:var(--warn)">−165k ha</td>
+                  </tr>
+                  <tr style="background:var(--surface)">
+                    <td style="padding:.25rem .6rem">🏘 Built-up</td>
+                    <td style="text-align:right;padding:.25rem .6rem">0.2%</td>
+                    <td style="text-align:right;padding:.25rem .6rem">2.8%</td>
+                    <td style="text-align:right;padding:.25rem .6rem;color:var(--warn)">+18k ha</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style="font-size:.75rem;color:var(--muted)">The large Forest gain reflects Dynamic World classifying
+                coffee/agroforestry plantations as tree cover — a key finding for the encroachment study.</p>
+            </div>
+            <button class="btn btn-primary" onclick="loadDemo()">▶ Load Demo Dataset (2013 → 2022)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ OVERVIEW -->
+      <div class="view" id="view-overview">
+        <div>
+          <div class="page-title">Overview</div>
+          <div class="page-sub" id="ov-sub">Summary statistics</div>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-label">TOTAL AREA</div>
+            <div class="kpi-value" id="kpi-total">—</div>
+            <div class="kpi-sub">hectares</div>
+          </div>
+          <div class="kpi warn">
+            <div class="kpi-label">CHANGED</div>
+            <div class="kpi-value" id="kpi-changed">—</div>
+            <div class="kpi-sub" id="kpi-cpct">—</div>
+          </div>
+          <div class="kpi gold">
+            <div class="kpi-label">UNCHANGED</div>
+            <div class="kpi-value" id="kpi-stable">—</div>
+            <div class="kpi-sub">hectares stable</div>
+          </div>
+          <div class="kpi mint">
+            <div class="kpi-label">CLASSES</div>
+            <div class="kpi-value" id="kpi-cls">—</div>
+            <div class="kpi-sub">land cover types</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Area by Class (ha)</span><span class="card-tag">GROUPED
+                BAR</span></div>
+            <div class="card-body">
+              <div class="chart-box"><canvas id="c-area"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Year B Composition</span><span
+                class="card-tag">DONUT</span></div>
+            <div class="card-body">
+              <div class="chart-box"><canvas id="c-donut"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Net Change per Class (ha)</span><span
+              class="card-tag">WATERFALL</span></div>
+          <div class="card-body">
+            <div class="chart-box"><canvas id="c-net"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ MAPS -->
+      <div class="view" id="view-maps">
+        <div>
+          <div class="page-title">Map Viewer</div>
+          <div class="page-sub">Rendered classified land cover maps at 30 m resolution</div>
+        </div>
+        <div class="card">
+          <div class="map-tabs">
+            <button class="map-tab active" onclick="loadMap('raster_2010',this)">Year A Classified</button>
+            <button class="map-tab" onclick="loadMap('raster_2020',this)">Year B Classified</button>
+            <button class="map-tab" onclick="loadMap('change',this)">Change Detection (3-panel)</button>
+            <button class="map-tab" onclick="loadMap('gain_loss',this)">Gain / Loss</button>
+          </div>
+          <div class="map-display" id="map-display">
+            <div class="map-placeholder">
+              <div class="mpi">🗺️</div><span>Load data first, then select a map type above.</span>
+            </div>
+          </div>
+          <div class="map-legend" id="map-legend"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ CHANGE MATRIX -->
+      <div class="view" id="view-matrix">
+        <div>
+          <div class="page-title">Change Matrix</div>
+          <div class="page-sub">Transition counts and areas between land cover classes</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Transition Matrix (ha) — row = FROM · col = TO</span><span
+              class="card-tag">TRANSITION TABLE</span></div>
+          <div class="card-body">
+            <div class="matrix-scroll" id="matrix-tbl">
+              <p style="color:var(--muted);font-family:var(--mono);font-size:.78rem">Load data to view.</p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Top 10 Largest Transitions</span><span
+              class="card-tag">OFF-DIAGONAL HA</span></div>
+          <div class="card-body">
+            <div class="chart-box-tall"><canvas id="c-trans"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Gain vs Loss per Class</span><span class="card-tag">STACKED
+              BAR</span></div>
+          <div class="card-body">
+            <div class="chart-box"><canvas id="c-gl"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ MARKOV -->
+      <div class="view" id="view-markov">
+        <div>
+          <div class="page-title">Markov Chain Analysis</div>
+          <div class="page-sub">Transition probability matrix, steady-state distribution, and mixing time</div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Transition Probability Matrix P</span><span
+                class="card-tag">ROW-STOCHASTIC</span></div>
+            <div class="card-body">
+              <div id="markov-tbl">
+                <p style="color:var(--muted);font-size:.78rem;font-family:var(--mono)">No data.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Steady-State vs Current Distribution</span><span
+                class="card-tag">PROJECTED</span></div>
+            <div class="card-body">
+              <div class="chart-box-tall"><canvas id="c-markov"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Persistence Probability per Class</span><span
+              class="card-tag">DIAGONAL OF P</span></div>
+          <div class="card-body">
+            <div id="persist-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ ACCURACY -->
+      <div class="view" id="view-accuracy">
+        <div>
+          <div class="page-title">Accuracy Assessment</div>
+          <div class="page-sub">Cohen's Kappa coefficient and per-class accuracy metrics</div>
+        </div>
+        <div class="grid-equal3">
+          <div class="kpi">
+            <div class="kpi-label">OVERALL ACCURACY</div>
+            <div class="kpi-value" id="a-oa">—</div>
+            <div class="kpi-sub">% of pixels correctly retained</div>
+          </div>
+          <div class="kpi warn">
+            <div class="kpi-label">COHEN'S KAPPA (κ)</div>
+            <div class="kpi-value" id="a-kappa">—</div>
+            <div class="kpi-sub" id="a-kinterp">—</div>
+          </div>
+          <div class="kpi gold">
+            <div class="kpi-label">EXPECTED ACCURACY P<sub>e</sub></div>
+            <div class="kpi-value" id="a-pe">—</div>
+            <div class="kpi-sub">random chance baseline</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Kappa Interpretation Scale</span><span
+              class="card-tag">LANDIS & KOCH 1977</span></div>
+          <div class="card-body">
+            <div class="interp-bar">
+              <div class="interp-fill" id="kappa-bar" style="width:0%"></div>
+            </div>
+            <div class="kappa-scale"><span>&lt;0 Worse</span><span>0.2 Slight</span><span>0.4 Fair</span><span>0.6
+                Moderate</span><span>0.8 Substantial</span><span>1.0 Perfect</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Per-Class Accuracy</span><span class="card-tag">PA / UA /
+              F1</span></div>
+          <div class="card-body">
+            <div class="chart-box"><canvas id="c-acc"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Per-Class Detail</span><span class="card-tag">TABLE</span>
+          </div>
+          <div class="card-body">
+            <div id="acc-table"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ SPATIAL -->
+      <div class="view" id="view-spatial">
+        <div>
+          <div class="page-title">Spatial Autocorrelation</div>
+          <div class="page-sub">Moran's I statistic on the binary change map (queen contiguity weights)</div>
+        </div>
+        <div class="chip-row" id="morans-chips"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Interpretation</span></div>
+          <div class="card-body">
+            <div class="formula" id="morans-formula">I = (n / S₀) × (z′Wz) / (z′z)</div>
+            <p style="font-size:.82rem;color:var(--muted);margin-top:.5rem" id="morans-interp">—</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Chi-Square Test of Transition Independence</span><span
+              class="card-tag">χ² TEST</span></div>
+          <div class="card-body">
+            <div class="chip-row" id="chi-chips"></div>
+            <p style="font-size:.82rem;color:var(--muted);margin-top:.75rem" id="chi-interp">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ LANDSCAPE -->
+      <div class="view" id="view-landscape">
+        <div>
+          <div class="page-title">Landscape Metrics</div>
+          <div class="page-sub">Patch-level and landscape-level metrics for both years</div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Year A Landscape Metrics</span></div>
+            <div class="card-body">
+              <div id="lm-a-tbl"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Year B Landscape Metrics</span></div>
+            <div class="card-body">
+              <div id="lm-b-tbl"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Fragmentation Index Change</span><span class="card-tag">ΔFI
+              PER CLASS</span></div>
+          <div class="card-body">
+            <div class="chart-box"><canvas id="c-frag"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ INFORMATION -->
+      <div class="view" id="view-information">
+        <div>
+          <div class="page-title">Information Theory</div>
+          <div class="page-sub">Shannon entropy, KL divergence, Jensen-Shannon divergence, redundancy</div>
+        </div>
+        <div class="grid-equal3">
+          <div class="kpi">
+            <div class="kpi-label">ENTROPY YEAR A (bits)</div>
+            <div class="kpi-value" id="ent-a">—</div>
+            <div class="kpi-sub" id="red-a">—</div>
+          </div>
+          <div class="kpi warn">
+            <div class="kpi-label">ENTROPY YEAR B (bits)</div>
+            <div class="kpi-value" id="ent-b">—</div>
+            <div class="kpi-sub" id="red-b">—</div>
+          </div>
+          <div class="kpi gold">
+            <div class="kpi-label">KL DIVERGENCE (nats)</div>
+            <div class="kpi-value" id="kl-val">—</div>
+            <div class="kpi-sub">D_KL(B ‖ A)</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Class-level Information Content</span><span
+              class="card-tag">−log₂(p) bits</span></div>
+          <div class="card-body">
+            <div class="chart-box"><canvas id="c-info"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Interpretation</span></div>
+          <div class="card-body">
+            <p style="font-size:.82rem;line-height:1.7" id="info-interp">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ PONTIUS -->
+      <div class="view" id="view-pontius">
+        <div>
+          <div class="page-title">Pontius Change Decomposition</div>
+          <div class="page-sub">Net change (systematic) vs Swap change (reciprocal exchange) per class</div>
+        </div>
+        <div class="grid-equal3">
+          <div class="kpi">
+            <div class="kpi-label">TOTAL NET CHANGE</div>
+            <div class="kpi-value" id="pon-net">—</div>
+            <div class="kpi-sub">hectares (directional)</div>
+          </div>
+          <div class="kpi warn">
+            <div class="kpi-label">TOTAL SWAP CHANGE</div>
+            <div class="kpi-value" id="pon-swap">—</div>
+            <div class="kpi-sub">hectares (reciprocal)</div>
+          </div>
+          <div class="kpi gold">
+            <div class="kpi-label">SWAP FRACTION</div>
+            <div class="kpi-value" id="pon-sf">—</div>
+            <div class="kpi-sub">of total change</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Net vs Swap per Class</span><span
+              class="card-tag">DECOMPOSITION</span></div>
+          <div class="card-body">
+            <div class="chart-box-tall"><canvas id="c-pont"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Persistence · Gain · Loss Table</span></div>
+          <div class="card-body">
+            <div id="pont-table"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ RATES -->
+      <div class="view" id="view-rates">
+        <div>
+          <div class="page-title">Annual Rate of Change &amp; Vulnerability</div>
+          <div class="page-sub">FAO compound annual rate · half-life · vulnerability index</div>
+        </div>
+        <div class="formula" id="roc-formula">r = (A<sub>t₂</sub> / A<sub>t₁</sub>)<sup>1/Δt</sup> − 1</div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Annual Rate of Change (%/yr)</span><span
+                class="card-tag">COMPOUND</span></div>
+            <div class="card-body">
+              <div class="chart-box-tall"><canvas id="c-roc"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Vulnerability Index</span><span class="card-tag">RISK
+                RANK</span></div>
+            <div class="card-body">
+              <div id="vuln-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Rates &amp; Half-Life Detail</span></div>
+          <div class="card-body">
+            <div id="roc-table"></div>
+          </div>
+        </div>
+      </div>
+
+    </main><!-- /main -->
+  </div><!-- /app -->
+
+  <script>
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* CONFIG                                                                  */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    const API = 'https://land-use-change-api.onrender.com';
+    let SID = null, uploadFiles = { a: null, b: null };
+    const CHARTS = {};
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* INIT                                                                    */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Check API
+      try {
+        const r = await fetch(`${API}/`);
+        if (r.ok) { setDot('ok'); setStatus('API connected'); }
+        else { setDot('err'); setStatus('API error'); }
+      } catch { setDot('err'); setStatus('API offline'); }
+
+      // Check GEE
+      try {
+        const r = await fetch(`${API}/gee/status`);
+        const d = await r.json();
+        const el = document.getElementById('gee-auth-status');
+        el.style.display = 'block';
+        el.innerHTML = d.authenticated
+          ? `<strong>✓ GEE authenticated</strong> — ${d.message}`
+          : `<strong>⚠ GEE not authenticated</strong> — ${d.message}`;
+        el.style.background = d.authenticated ? '' : '#fde8e8';
+        el.style.borderColor = d.authenticated ? '' : 'var(--warn)';
+      } catch { }
+
+      // Watch format selects
+      document.getElementById('u-fmt-a').addEventListener('change', checkRawFmt);
+      document.getElementById('u-fmt-b').addEventListener('change', checkRawFmt);
+
+      updateGeeDatasets();
+      hideLoader();
+      toast('Ready — upload rasters, fetch from GEE, or load the demo dataset.', 'ok');
+    });
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* NAV                                                                     */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function sv(name, btn) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`view-${name}`).classList.add('active');
+      if (btn) btn.classList.add('active');
+    }
+
+    function setInputTab(name, btn) {
+      document.querySelectorAll('.input-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.input-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`pane-${name}`).classList.add('active');
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* DATA INPUT — Upload                                                     */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function fileSelected(e, which) {
+      const f = e.target.files[0];
+      if (!f) return;
+      uploadFiles[which] = f;
+      document.getElementById(`fname-${which}`).textContent = f.name;
+      document.getElementById(`zone-${which}`).classList.add('has-file');
+      document.getElementById('upload-btn').disabled = !(uploadFiles.a && uploadFiles.b);
+    }
+
+    function checkRawFmt() {
+      const raw = document.getElementById('u-fmt-a').value === 'raw' || document.getElementById('u-fmt-b').value === 'raw';
+      document.getElementById('nclass-row').style.display = raw ? 'flex' : 'none';
+    }
+
+    async function doUpload() {
+      if (!uploadFiles.a || !uploadFiles.b) { toast('Select both raster files first.', 'err'); return; }
+      showLoader('Processing rasters…');
+      const fd = new FormData();
+      fd.append('raster_a', uploadFiles.a);
+      fd.append('raster_b', uploadFiles.b);
+      fd.append('year_a', document.getElementById('u-year-a').value);
+      fd.append('year_b', document.getElementById('u-year-b').value);
+      fd.append('format_a', document.getElementById('u-fmt-a').value);
+      fd.append('format_b', document.getElementById('u-fmt-b').value);
+      fd.append('n_classes', document.getElementById('u-nclasses').value);
+      try {
+        const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+        const d = await r.json();
+        SID = d.session_id;
+        await loadAllResults(d.year_a, d.year_b);
+        toast(`Rasters loaded — ${d.shape[0]}×${d.shape[1]} px, CRS: ${d.crs}`, 'ok');
+        sv('overview', document.querySelector('.nav-btn:nth-child(2)'));
+      } catch (e) { toast('Upload failed: ' + e.message, 'err'); }
+      finally { hideLoader(); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* DATA INPUT — GEE                                                        */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    async function updateGeeDatasets() {
+      const ya = document.getElementById('g-year-a').value;
+      const yb = document.getElementById('g-year-b').value;
+      const el = document.getElementById('gee-ds-preview');
+      if (!ya || !yb) { el.style.display = 'none'; return; }
+      try {
+        const r = await fetch(`${API}/gee/dataset-info?year_a=${ya}&year_b=${yb}`);
+        if (!r.ok) { el.style.display = 'none'; return; }
+        const d = await r.json();
+        el.style.display = 'block';
+        el.innerHTML = `
+      <strong>Year A (${d.year_a.year}):</strong> ${d.year_a.dataset} — ${d.year_a.description}<br/>
+      <strong>Year B (${d.year_b.year}):</strong> ${d.year_b.dataset} — ${d.year_b.description}`;
+      } catch { el.style.display = 'none'; }
+    }
+
+    function toggleBbox() {
+      const place = document.getElementById('g-place').value.trim();
+      ['g-minx', 'g-miny', 'g-maxx', 'g-maxy'].forEach(id => {
+        document.getElementById(id).disabled = place.length > 0;
+      });
+    }
+
+    async function doGEEFetch() {
+      showLoader('Fetching from Google Earth Engine…');
+      const place = document.getElementById('g-place').value.trim();
+      const ya = document.getElementById('g-year-a').value;
+      const yb = document.getElementById('g-year-b').value;
+      const fd = new FormData();
+      fd.append('year_a', ya); fd.append('year_b', yb);
+      if (place) fd.append('place', place);
+      else {
+        ['minx', 'miny', 'maxx', 'maxy'].forEach(k => fd.append(`bbox_${k}`, document.getElementById(`g-${k}`).value));
+      }
+      try {
+        const r = await fetch(`${API}/gee/fetch`, { method: 'POST', body: fd });
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+        const d = await r.json();
+        SID = d.session_id;
+        await loadAllResults(d.year_a, d.year_b);
+        toast(`GEE data fetched — ${d.dataset_a} + ${d.dataset_b}`, 'ok');
+        sv('overview', document.querySelector('.nav-btn:nth-child(2)'));
+      } catch (e) { toast('GEE fetch failed: ' + e.message, 'err'); }
+      finally { hideLoader(); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* DEMO                                                                    */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    async function loadDemo() {
+      showLoader('Generating synthetic landscape…');
+      try {
+        const r = await fetch(`${API}/demo`, { method: 'POST' });
+        if (!r.ok) throw new Error('Demo load failed');
+        const d = await r.json();
+        SID = d.session_id;
+        await loadAllResults(2013, 2022);
+        toast('Demo loaded — Chikkamagaluru District 2013 → 2022', 'ok');
+        sv('overview', document.querySelector('.nav-btn:nth-child(2)'));
+      } catch (e) { toast(e.message, 'err'); }
+      finally { hideLoader(); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* LOAD ALL RESULTS                                                         */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    async function loadAllResults(ya, yb) {
+      showLoader('Computing statistics…');
+      document.getElementById('year-badge').textContent = `${ya} → ${yb}`;
+
+      const [summary, areaStats, allStats] = await Promise.all([
+        api(`/summary/${SID}`),
+        api(`/area-stats/${SID}`),
+        api(`/stats/all/${SID}`),
+      ]);
+
+      renderOverview(summary, areaStats, ya, yb);
+      renderMatrix(allStats.change_matrix, areaStats, allStats);
+      renderMarkov(allStats.markov);
+      renderAccuracy(allStats.accuracy);
+      renderSpatial(allStats.morans_i, allStats.chi_square);
+      renderLandscape(allStats.landscape);
+      renderInformation(allStats.information);
+      renderPontius(allStats.pontius);
+      renderRates(allStats.rate_of_change, allStats.vulnerability);
+
+      // Enable exports
+      ['exp-pdf', 'exp-csv', 'exp-tif'].forEach(id => document.getElementById(id).disabled = false);
+      hideLoader();
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* OVERVIEW                                                                 */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderOverview(s, area, ya, yb) {
+      setText('kpi-total', fmtHa(s.total_area_ha));
+      setText('kpi-changed', fmtHa(s.changed_area_ha));
+      setText('kpi-cpct', `${s.change_pct}% of total`);
+      setText('kpi-stable', fmtHa(s.unchanged_area_ha));
+      setText('kpi-cls', s.n_classes);
+      setText('ov-sub', `${ya} → ${yb} · ${s.raster_shape[0]}×${s.raster_shape[1]} px · 30 m resolution`);
+
+      dc('c-area');
+      CHARTS['c-area'] = new Chart(ctx('c-area'), {
+        type: 'bar', data: {
+          labels: area.map(a => a.class_name),
+          datasets: [
+            { label: `${ya}`, data: area.map(a => a.area_a_ha), backgroundColor: area.map(a => a.color + '55'), borderColor: area.map(a => a.color), borderWidth: 1.5 },
+            { label: `${yb}`, data: area.map(a => a.area_b_ha), backgroundColor: area.map(a => a.color), borderRadius: 3 },
+          ]
+        }, options: chartOpts()
+      });
+
+      dc('c-donut');
+      CHARTS['c-donut'] = new Chart(ctx('c-donut'), {
+        type: 'doughnut', data: {
+          labels: area.map(a => a.class_name),
+          datasets: [{ data: area.map(a => a.area_b_ha), backgroundColor: area.map(a => a.color), borderWidth: 1, borderColor: '#faf8f3' }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: '58%',
+          plugins: { legend: { position: 'right', labels: { color: '#1b2d20', font: { family: 'IBM Plex Mono', size: 9 }, padding: 10 } } }
+        }
+      });
+
+      dc('c-net');
+      const nets = area.map(a => a.change_ha);
+      CHARTS['c-net'] = new Chart(ctx('c-net'), {
+        type: 'bar', data: {
+          labels: area.map(a => a.class_name),
+          datasets: [{
+            label: 'Net Change (ha)', data: nets,
+            backgroundColor: nets.map(v => v >= 0 ? '#2d6a4f55' : '#bc474955'),
+            borderColor: nets.map(v => v >= 0 ? '#2d6a4f' : '#bc4749'),
+            borderWidth: 1.5, borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { ticks: { color: '#5a7060', font: { size: 9 }, callback: v => fmtHa(v) }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* CHANGE MATRIX                                                            */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderMatrix(cm, area, allStats) {
+      const labels = cm.labels, colors = cm.colors;
+      const maxOff = Math.max(...cm.matrix.flatMap(r => r.values.filter((_, j) => r.values.indexOf(_) !== cm.matrix.indexOf(r)).map(v => v.ha)));
+
+      let h = `<table class="cm-table"><thead><tr><th>FROM \\ TO</th>`;
+      labels.forEach((l, i) => h += `<th class="cm-colhdr" style="border-top:2px solid ${colors[i]}">${l}</th>`);
+      h += '</tr></thead><tbody>';
+      cm.matrix.forEach((row, i) => {
+        h += `<tr><td class="cm-rlbl" style="border-left:3px solid ${colors[i]}">${row.from_name}<br/><span style="font-weight:400;color:var(--muted)">${fmtHa(row.row_total_ha)} ha</span></td>`;
+        row.values.forEach((v, j) => {
+          const diag = i === j, hot = !diag && v.ha > maxOff * .2 && v.ha > 5;
+          h += `<td class="${diag ? 'cm-diag' : hot ? 'cm-hot' : ''}" title="${v.pct_of_from}% of row">${v.ha.toFixed(1)}</td>`;
+        });
+        h += '</tr>';
+      });
+      h += '</tbody></table>';
+      document.getElementById('matrix-tbl').innerHTML = h;
+
+      // Top transitions chart
+      const trans = [];
+      cm.matrix.forEach(row => row.values.forEach(v => { if (row.from_name !== v.to_name && v.ha > .5) trans.push({ lbl: `${row.from_name} → ${v.to_name}`, ha: v.ha }); }));
+      trans.sort((a, b) => b.ha - a.ha); const top = trans.slice(0, 10);
+      dc('c-trans');
+      CHARTS['c-trans'] = new Chart(ctx('c-trans'), {
+        type: 'bar', data: {
+          labels: top.map(t => t.lbl),
+          datasets: [{
+            label: 'Area (ha)', data: top.map(t => t.ha),
+            backgroundColor: '#40916c44', borderColor: '#40916c', borderWidth: 1.5, borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { ticks: { color: '#1b2d20', font: { size: 9, family: 'IBM Plex Mono' } }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+
+      // Gain/loss
+      const gl = allStats.pontius.per_class;
+      dc('c-gl');
+      CHARTS['c-gl'] = new Chart(ctx('c-gl'), {
+        type: 'bar', data: {
+          labels: gl.map(d => d.class_name),
+          datasets: [
+            { label: 'Gain (ha)', data: gl.map(d => d.gain_ha), backgroundColor: '#2d6a4f44', borderColor: '#2d6a4f', borderWidth: 1.5, borderRadius: 3 },
+            { label: 'Loss (ha)', data: gl.map(d => -d.loss_ha), backgroundColor: '#bc474944', borderColor: '#bc4749', borderWidth: 1.5, borderRadius: 3 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#5a7060', font: { family: 'IBM Plex Mono', size: 9 } } } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { ticks: { color: '#5a7060', font: { size: 9 }, callback: v => Math.abs(v).toFixed(0) + ' ha' }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* MARKOV                                                                   */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderMarkov(mk) {
+      const labels = mk.labels, colors_ = [];
+      // Build probability table
+      let h = `<table class="cm-table"><thead><tr><th>FROM \\ TO</th>`;
+      labels.forEach(l => h += `<th class="cm-colhdr">${l}</th>`); h += '</tr></thead><tbody>';
+      mk.prob_rows.forEach((row, i) => {
+        h += `<tr><td class="cm-rlbl">${row.from_name}</td>`;
+        row.probs.forEach((p, j) => {
+          const diag = i === j;
+          const v = p.probability;
+          const bg = `rgba(45,106,79,${(v * .8).toFixed(2)})`;
+          h += `<td class="${diag ? 'cm-diag' : ''}" style="${!diag && v > .15 ? `background:${bg};color:${v > .5 ? '#fff' : '#1b2d20'}` : ''}">${v.toFixed(3)}</td>`;
+        });
+        h += '</tr>';
+      }); h += '</tbody></table>';
+      document.getElementById('markov-tbl').innerHTML = h;
+
+      // Steady-state chart
+      dc('c-markov');
+      CHARTS['c-markov'] = new Chart(ctx('c-markov'), {
+        type: 'bar', data: {
+          labels: mk.labels,
+          datasets: [
+            { label: 'Predicted Dist.', data: mk.predicted_dist.map(v => +(v * 100).toFixed(2)), backgroundColor: '#2d6a4f55', borderColor: '#2d6a4f', borderWidth: 1.5, borderRadius: 3 },
+            { label: 'Steady-State', data: mk.steady_state.map(v => +(v * 100).toFixed(2)), backgroundColor: '#74c69d55', borderColor: '#74c69d', borderWidth: 1.5, borderRadius: 3 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#5a7060', font: { family: 'IBM Plex Mono', size: 9 } } } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { ticks: { color: '#5a7060', font: { size: 9 }, callback: v => v + '%' }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+
+      // Persistence bars
+      let ph = '';
+      Object.entries(mk.persistence).forEach(([name, val]) => {
+        const w = (val * 100).toFixed(1); const col = val > .7 ? 'var(--accent)' : val > .4 ? 'var(--gold)' : 'var(--warn)';
+        ph += `<div style="margin-bottom:.6rem"><div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.2rem"><span>${name}</span><span style="font-family:var(--mono);font-size:.72rem;color:${col}">${(val * 100).toFixed(1)}%</span></div><div class="interp-bar"><div style="width:${w}%;height:100%;border-radius:4px;background:${col};"></div></div></div>`;
+      });
+      if (mk.mixing_time_years) ph += `<p style="margin-top:.75rem;font-size:.75rem;color:var(--muted)">Estimated mixing time: <strong style="font-family:var(--mono)">${mk.mixing_time_years} years</strong></p>`;
+      if (mk.interpretation) ph += `<p style="font-size:.78rem;color:var(--text);margin-top:.5rem">${mk.interpretation}</p>`;
+      document.getElementById('persist-list').innerHTML = ph;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* ACCURACY                                                                 */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderAccuracy(acc) {
+      const oa = acc.overall_accuracy || 0, kappa = acc.kappa || 0, pe = acc.expected_accuracy_Pe || 0;
+      setText('a-oa', (oa * 100).toFixed(2) + '%');
+      setText('a-kappa', kappa.toFixed(4));
+      setText('a-kinterp', acc.kappa_interpretation || '');
+      setText('a-pe', (pe * 100).toFixed(2) + '%');
+      document.getElementById('kappa-bar').style.width = Math.max(0, Math.min(100, kappa * 100)) + '%';
+
+      const pc = acc.per_class || [];
+      dc('c-acc');
+      CHARTS['c-acc'] = new Chart(ctx('c-acc'), {
+        type: 'bar', data: {
+          labels: pc.map(p => p.class_name),
+          datasets: [
+            { label: "Producer's Acc.", data: pc.map(p => +(p.producers_accuracy * 100).toFixed(1)), backgroundColor: '#2d6a4f55', borderColor: '#2d6a4f', borderWidth: 1.5, borderRadius: 3 },
+            { label: "User's Acc.", data: pc.map(p => +(p.users_accuracy * 100).toFixed(1)), backgroundColor: '#74c69d55', borderColor: '#74c69d', borderWidth: 1.5, borderRadius: 3 },
+            { label: 'F1 Score', data: pc.map(p => +(p.f1_score * 100).toFixed(1)), backgroundColor: '#8a6f2e44', borderColor: '#8a6f2e', borderWidth: 1.5, borderRadius: 3 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#5a7060', font: { family: 'IBM Plex Mono', size: 9 } } } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { min: 0, max: 100, ticks: { color: '#5a7060', font: { size: 9 }, callback: v => v + '%' }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+
+      // Table
+      let h = `<table class="stats-table"><thead><tr><th>Class</th><th>Producer's Acc.</th><th>User's Acc.</th><th>F1 Score</th></tr></thead><tbody>`;
+      pc.forEach(p => { h += `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${p.color};margin-right:.4rem;"></span>${p.class_name}</td><td class="num">${(p.producers_accuracy * 100).toFixed(1)}%</td><td class="num">${(p.users_accuracy * 100).toFixed(1)}%</td><td class="num">${p.f1_score.toFixed(3)}</td></tr>`; });
+      h += '</tbody></table>';
+      document.getElementById('acc-table').innerHTML = h;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* SPATIAL                                                                  */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderSpatial(mi, chi) {
+      const chips = [
+        { l: "Moran's I", v: mi.morans_i, sub: 'spatial autocorrelation' },
+        { l: 'Z-Score', v: mi.z_score, sub: 'standard deviations from E[I]' },
+        { l: 'p-value', v: mi.p_value, sub: mi.significant ? '✓ Significant (p<0.05)' : 'Not significant' },
+        { l: 'Expected I', v: mi.expected_i, sub: 'E[I] under null hypothesis' },
+      ];
+      document.getElementById('morans-chips').innerHTML = chips.map(c => `
+    <div class="stat-chip"><div class="stat-chip-label">${c.l}</div><div class="stat-chip-value">${c.v}</div><div class="stat-chip-sub">${c.sub}</div></div>`).join('');
+      setText('morans-interp', mi.interpretation || '');
+
+      const cchips = [
+        { l: 'χ² Statistic', v: chi.chi2_statistic },
+        { l: 'Degrees of Freedom', v: chi.degrees_of_freedom },
+        { l: 'p-value', v: chi.p_value },
+        { l: "Cramér's V", v: `${chi.cramers_v} (${chi.effect_size})` },
+      ];
+      document.getElementById('chi-chips').innerHTML = cchips.map(c => `
+    <div class="stat-chip"><div class="stat-chip-label">${c.l}</div><div class="stat-chip-value">${c.v}</div></div>`).join('');
+      setText('chi-interp', chi.interpretation || '');
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* LANDSCAPE                                                                */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderLandscape(lm) {
+      const mkTbl = (data) => {
+        if (!data || !data.length) return '<p style="color:var(--muted);font-size:.78rem">No data.</p>';
+        let h = `<table class="stats-table"><thead><tr><th>Class</th><th>Patches</th><th>MPS (ha)</th><th>LPI %</th><th>PD</th><th>ED</th><th>Frag.</th></tr></thead><tbody>`;
+        data.forEach(r => { h += `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${r.color};margin-right:.35rem"></span>${r.class_name}</td><td class="num">${r.n_patches}</td><td class="num">${r.mean_patch_size_ha}</td><td class="num">${r.largest_patch_pct}%</td><td class="num">${r.patch_density}</td><td class="num">${r.edge_density_m_ha}</td><td class="num">${r.fragmentation_idx}</td></tr>`; });
+        return h + '</tbody></table>';
+      };
+      document.getElementById('lm-a-tbl').innerHTML = mkTbl(lm.year_a);
+      document.getElementById('lm-b-tbl').innerHTML = mkTbl(lm.year_b);
+
+      // Fragmentation delta chart
+      const names = (lm.year_a || []).map(r => r.class_name);
+      const fraA = (lm.year_a || []).map(r => r.fragmentation_idx);
+      const fraB = (lm.year_b || []).map(r => r.fragmentation_idx);
+      dc('c-frag');
+      CHARTS['c-frag'] = new Chart(ctx('c-frag'), {
+        type: 'bar', data: {
+          labels: names,
+          datasets: [
+            { label: 'Year A Fragmentation', data: fraA, backgroundColor: '#2d6a4f44', borderColor: '#2d6a4f', borderWidth: 1.5, borderRadius: 3 },
+            { label: 'Year B Fragmentation', data: fraB, backgroundColor: '#bc474944', borderColor: '#bc4749', borderWidth: 1.5, borderRadius: 3 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#5a7060', font: { family: 'IBM Plex Mono', size: 9 } } } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { min: 0, max: 1, ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* INFORMATION                                                              */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderInformation(info) {
+      setText('ent-a', info.shannon_entropy_a + '');
+      setText('ent-b', info.shannon_entropy_b + '');
+      setText('kl-val', info.kl_divergence + '');
+      setText('red-a', `Redundancy: ${(info.redundancy_a * 100).toFixed(1)}%`);
+      setText('red-b', `Redundancy: ${(info.redundancy_b * 100).toFixed(1)}%`);
+      setText('info-interp', info.interpretation || '');
+
+      const pc = info.per_class || [];
+      dc('c-info');
+      CHARTS['c-info'] = new Chart(ctx('c-info'), {
+        type: 'bar', data: {
+          labels: pc.map(p => p.class_name),
+          datasets: [
+            { label: 'Info content A (bits)', data: pc.map(p => p.info_content_a), backgroundColor: '#2d6a4f44', borderColor: '#2d6a4f', borderWidth: 1.5, borderRadius: 3 },
+            { label: 'Info content B (bits)', data: pc.map(p => p.info_content_b), backgroundColor: '#8a6f2e44', borderColor: '#8a6f2e', borderWidth: 1.5, borderRadius: 3 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#5a7060', font: { family: 'IBM Plex Mono', size: 9 } } } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { ticks: { color: '#5a7060', font: { size: 9 }, callback: v => v + ' bits' }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* PONTIUS                                                                  */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderPontius(po) {
+      setText('pon-net', fmtHa(po.total_net_ha));
+      setText('pon-swap', fmtHa(po.total_swap_ha));
+      setText('pon-sf', (po.swap_fraction * 100).toFixed(1) + '%');
+
+      const pc = po.per_class || [];
+      dc('c-pont');
+      CHARTS['c-pont'] = new Chart(ctx('c-pont'), {
+        type: 'bar', data: {
+          labels: pc.map(p => p.class_name),
+          datasets: [
+            { label: 'Persistence', data: pc.map(p => p.persistence_ha), backgroundColor: '#2d6a4f55', borderColor: '#2d6a4f', borderWidth: 1 },
+            { label: 'Gain', data: pc.map(p => p.gain_ha), backgroundColor: '#74c69d55', borderColor: '#74c69d', borderWidth: 1 },
+            { label: 'Net Change', data: pc.map(p => p.net_change_ha), backgroundColor: '#8a6f2e55', borderColor: '#8a6f2e', borderWidth: 1 },
+            { label: 'Swap Change', data: pc.map(p => p.swap_change_ha), backgroundColor: '#bc474955', borderColor: '#bc4749', borderWidth: 1 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#5a7060', font: { family: 'IBM Plex Mono', size: 9 } } } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { ticks: { color: '#5a7060', font: { size: 9 }, callback: v => fmtHa(v) + ' ha' }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+
+      let h = `<table class="stats-table"><thead><tr><th>Class</th><th>Persistence</th><th>Gain</th><th>Loss</th><th>Net</th><th>Swap</th><th>Direction</th></tr></thead><tbody>`;
+      pc.forEach(p => {
+        const dir = p.net_direction;
+        const bcls = dir === 'gain' ? 'low' : dir === 'loss' ? 'high' : 'mod';
+        h += `<tr><td>${p.class_name}</td><td class="num">${fmtHa(p.persistence_ha)}</td><td class="num pos">${fmtHa(p.gain_ha)}</td><td class="num neg">${fmtHa(p.loss_ha)}</td><td class="num">${fmtHa(p.net_change_ha)}</td><td class="num">${fmtHa(p.swap_change_ha)}</td><td><span class="badge ${bcls}">${dir}</span></td></tr>`;
+      });
+      h += '</tbody></table>';
+      document.getElementById('pont-table').innerHTML = h;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* RATES & VULNERABILITY                                                    */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function renderRates(roc, vuln) {
+      const pc = roc.per_class || [];
+      dc('c-roc');
+      CHARTS['c-roc'] = new Chart(ctx('c-roc'), {
+        type: 'bar', data: {
+          labels: pc.map(p => p.class_name),
+          datasets: [{
+            label: 'Annual rate (%/yr)', data: pc.map(p => p.annual_rate_pct || 0),
+            backgroundColor: pc.map(p => (p.annual_rate_pct || 0) >= 0 ? '#2d6a4f55' : '#bc474955'),
+            borderColor: pc.map(p => (p.annual_rate_pct || 0) >= 0 ? '#2d6a4f' : '#bc4749'),
+            borderWidth: 1.5, borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+            y: { ticks: { color: '#5a7060', font: { size: 9 }, callback: v => v + '%' }, grid: { color: '#c8d5bf' } }
+          }
+        }
+      });
+
+      // Vulnerability list
+      const vp = vuln.per_class || [];
+      let vh = '';
+      vp.forEach(p => {
+        const w = (p.vulnerability_index * 100).toFixed(1);
+        const col = p.risk_level === 'Critical' ? '#bc4749' : p.risk_level === 'High' ? '#bc474988' : p.risk_level === 'Moderate' ? '#8a6f2e' : '#2d6a4f';
+        vh += `<div style="margin-bottom:.75rem">
+      <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.18rem">
+        <span>${p.class_name}</span>
+        <span style="font-family:var(--mono);color:${col}">${p.risk_level} (${w})</span>
+      </div>
+      <div class="interp-bar"><div style="width:${w}%;height:100%;border-radius:4px;background:${col}"></div></div>
+    </div>`;
+      });
+      document.getElementById('vuln-list').innerHTML = vh;
+
+      // Rate table
+      let h = `<table class="stats-table"><thead><tr><th>Class</th><th>Area A (ha)</th><th>Area B (ha)</th><th>Change %</th><th>Rate %/yr</th><th>Half-life (yr)</th><th>Doubling (yr)</th></tr></thead><tbody>`;
+      pc.forEach(p => {
+        const sign = (p.annual_rate_pct || 0) >= 0 ? 'pos' : 'neg';
+        h += `<tr><td>${p.class_name}</td><td class="num">${fmtHa(p.area_a_ha)}</td><td class="num">${fmtHa(p.area_b_ha)}</td><td class="num ${sign}">${p.change_pct != null ? p.change_pct + '%' : '—'}</td><td class="num ${sign}">${p.annual_rate_pct != null ? p.annual_rate_pct + '%' : '—'}</td><td class="num">${p.half_life_years || '—'}</td><td class="num">${p.doubling_time_years || '—'}</td></tr>`;
+      });
+      h += '</tbody></table>';
+      document.getElementById('roc-table').innerHTML = h;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* MAP VIEWER                                                               */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    const CLASSES = [
+      { name: 'Forest', color: '#2d6a4f' }, { name: 'Shrubland', color: '#74c69d' },
+      { name: 'Cropland', color: '#c9a227' }, { name: 'Grassland', color: '#95d5b2' },
+      { name: 'Built-up', color: '#bc4749' }, { name: 'Water/Wetland', color: '#4895ef' },
+      { name: 'Bare/Snow', color: '#d4a373' },
+    ];
+    async function loadMap(type, btn) {
+      if (!SID) { toast('Load data first', 'err'); return; }
+      document.querySelectorAll('.map-tab').forEach(t => t.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const wrap = document.getElementById('map-display');
+      wrap.innerHTML = '<div class="map-placeholder"><div class="spinner"></div><span>Rendering…</span></div>';
+      const img = new Image();
+      img.onload = () => { wrap.innerHTML = ''; wrap.appendChild(img); img.style.width = '100%'; };
+      img.onerror = () => { wrap.innerHTML = '<div class="map-placeholder"><div class="mpi">⚠️</div><span>Render failed</span></div>'; };
+      img.src = `${API}/map/${SID}/${type}?t=${Date.now()}`;
+
+      const leg = document.getElementById('map-legend');
+      if (type === 'gain_loss') {
+        leg.innerHTML = '<div class="ml-item"><div class="ml-swatch" style="background:#e8e4d9"></div>No Change</div><div class="ml-item"><div class="ml-swatch" style="background:#2d6a4f"></div>Gain</div><div class="ml-item"><div class="ml-swatch" style="background:#bc4749"></div>Loss</div>';
+      } else {
+        leg.innerHTML = CLASSES.map(c => `<div class="ml-item"><div class="ml-swatch" style="background:${c.color}"></div>${c.name}</div>`).join('');
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* EXPORT                                                                   */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    function exportFile(type) {
+      if (!SID) { toast('No data loaded', 'err'); return; }
+      window.open(`${API}/export/${type}/${SID}`, '_blank');
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    /* HELPERS                                                                  */
+    /* ═══════════════════════════════════════════════════════════════════════ */
+    async function api(path) { const r = await fetch(API + path); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+    function ctx(id) { return document.getElementById(id).getContext('2d'); }
+    function dc(id) { if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; } }
+    function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+    function fmtHa(n) { if (n == null) return '—'; if (n >= 10000) return (n / 1000).toFixed(1) + 'k'; return (+n).toFixed(0); }
+    function showLoader(msg = 'Loading…') { document.getElementById('loader-msg').textContent = msg; document.getElementById('loader').classList.add('show'); }
+    function hideLoader() { document.getElementById('loader').classList.remove('show'); }
+    function toast(msg, type = 'ok') { const el = document.getElementById('toast'); el.textContent = msg; el.className = 'toast ' + (type === 'err' ? 'err' : '') + 'show'; setTimeout(() => el.classList.remove('show'), 5000); }
+    function setDot(state) { const d = document.getElementById('api-dot'); d.className = 'dot ' + state; }
+    function setStatus(msg) { document.getElementById('api-status').textContent = msg; }
+    function chartOpts(extra = {}) {
+      return {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#5a7060', font: { family: 'IBM Plex Mono', size: 9 } } } },
+        scales: {
+          x: { ticks: { color: '#5a7060', font: { size: 9 } }, grid: { color: '#c8d5bf' } },
+          y: { ticks: { color: '#5a7060', font: { size: 9 }, callback: v => fmtHa(v) }, grid: { color: '#c8d5bf' } }
+        },
+        ...extra
+      };
+    }
+  </script>
+</body>
+
+</html>
